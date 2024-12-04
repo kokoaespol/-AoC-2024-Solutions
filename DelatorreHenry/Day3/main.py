@@ -21,7 +21,7 @@ import re
 
 with open("input.txt","r") as file:
     cadena = file.read().strip()
-    patron = r"mul\(\s*([\w\d\+\-\*/]+)\s*,\s*([\w\d\+\-\*/]+)\s*\)"
+    patron = r"mul\((\d+),(\d+)\)"
     resultados = re.findall(patron, cadena)
     suma = 0
     for x, y in resultados:
