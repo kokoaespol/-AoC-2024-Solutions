@@ -7,3 +7,9 @@ day02: day02.ts
 
 day04: day04.ts
 	bun build --compile $< --minify --bytecode --outfile $@
+
+day05: day05.ts
+	bun build --compile $< --minify --bytecode --outfile $@
+
+
+.PHONY: day05
