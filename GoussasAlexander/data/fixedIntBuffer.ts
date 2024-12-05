@@ -1,7 +1,6 @@
-import "bun:test";
-import { describe, expect, it } from "bun:test";
+import type { Iterate, IterateCallback } from "./iterate";
 
-export class FixedIntBuffer {
+export class FixedIntBuffer implements Iterate<number, number> {
   public length: number;
   private _mask: number = 0;
 
@@ -19,15 +18,7 @@ export class FixedIntBuffer {
 
   at(index: number): number {
     if (this.isMasked(index)) {
-      while (index < this.length && this.isMasked(index)) {
-        index++;
-      }
-
-      if (index < this.length && !this.isMasked(index)) {
-        return this.internal[index];
-      } else {
-        throw new Error("index out of bounds");
-      }
+      throw new Error("tried to access a masked element");
     }
     return this.internal[index];
   }
@@ -55,43 +46,19 @@ export class FixedIntBuffer {
   [Symbol.iterator](): Iterator<number> {
     return this.iterator();
   }
+
+  iterate(cb: IterateCallback<number, number>) {
+    let index = 0;
+    return cb({
+      step: () => {
+        while (this.isMasked(index) && index < this.internal.length) {
+          index++;
+        }
+        if (index < this.internal.length) {
+          return this.internal[index++];
+        }
+        return null;
+      },
+    });
+  }
 }
-
-describe("FixedIntBuffer", () => {
-  it("should mask elements correctly", () => {
-    const xs = FixedIntBuffer.from([1, 2, 3]);
-    xs.mask(1);
-
-    const ys = [...xs];
-
-    expect(ys.length).toBe(2);
-    expect(ys).toContainValues([1, 3]);
-    expect(ys).not.toContain(2);
-  });
-
-  it("masking and unmasking should effectively do nothing", () => {
-    const xs = FixedIntBuffer.from([1, 2, 3]);
-    xs.mask(1);
-    xs.unmask(1);
-
-    const ys = [...xs];
-
-    expect(ys.length).toBe(3);
-    expect(ys).toContainAllValues([1, 2, 3]);
-  });
-
-  it("accessing a masked element returns the next unmasked element", () => {
-    const xs = FixedIntBuffer.from([1, 2, 3]);
-    xs.mask(1);
-    xs.mask(0);
-
-    expect(xs.at(0)).toBe(3);
-  });
-
-  it("accessing a masked element when there are no more elements after it throws an error", () => {
-    const xs = FixedIntBuffer.from([1, 2, 3]);
-    xs.mask(2);
-
-    expect(() => xs.at(2)).toThrowError("index out of bounds");
-  });
-});
