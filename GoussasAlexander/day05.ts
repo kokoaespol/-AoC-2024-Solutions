@@ -1,5 +1,3 @@
-import _ from "lodash";
-
 type G = Map<string, Set<string>>;
 
 const mkGraph = (instructions: string[][]): G => {
@@ -14,12 +12,12 @@ const mkGraph = (instructions: string[][]): G => {
   return g;
 };
 
-const input = await Bun.file("sample.txt").text();
+const input = await Bun.file("input.txt").text();
 
-const [instructions, updates] = input.trim().split("\n\n");
+const [instructions, updates] = input.trim().split("\r\n\r\n");
 
-const g = mkGraph(instructions.split("\n").map((i) => i.split("|")));
-const u = updates.split("\n").map((u) => u.split(","));
+const g = mkGraph(instructions.split("\r\n").map((i) => i.split("|")));
+const u = updates.split("\r\n").map((u) => u.split(","));
 
 const isSorted = (xs: string[]) => {
   let i = 1;
@@ -32,7 +30,36 @@ const isSorted = (xs: string[]) => {
   return i >= xs.length;
 };
 
-const sort = (xs: string[], g: G) => {};
+const sort = (xs: string[], g: G) => {
+  const visited = new Set();
+  const path = [] as string[];
+
+  const visit = (node: string) => {
+    if (visited.has(node)) {
+      return true;
+    }
+
+    visited.add(node);
+
+    for (const x of g.get(node) ?? []) {
+      if (xs.includes(x)) {
+        visit(x);
+      }
+    }
+
+    path.push(node);
+  };
+
+  for (const x of xs) {
+    if (!visited.has(x)) {
+      if (visit(x)) {
+        break;
+      }
+    }
+  }
+
+  return path;
+};
 
 const part1 = () => {
   let sum = 0;
@@ -49,8 +76,7 @@ const part2 = () => {
   for (const update of u) {
     if (!isSorted(update)) {
       const sorted = sort(update, g);
-      console.log(sorted);
-      sum += Number(update[Math.floor(update.length / 2)]);
+      sum += Number(sorted[Math.floor(update.length / 2)]);
     }
   }
   return sum;
