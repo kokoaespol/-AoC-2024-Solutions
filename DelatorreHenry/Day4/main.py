@@ -38,7 +38,7 @@ S.S.S.S.SS
 .X.X.XMASX
 Take a look at the little Elf's word search. How many times does XMAS appear?
 """
-import re
+
 import numpy as np
 
 with open("input.txt","r") as file:
