@@ -12,14 +12,7 @@ const mkGraph = (instructions: string[][]): G => {
   return g;
 };
 
-const input = await Bun.file("input.txt").text();
-
-const [instructions, updates] = input.trim().split("\r\n\r\n");
-
-const g = mkGraph(instructions.split("\r\n").map((i) => i.split("|")));
-const u = updates.split("\r\n").map((u) => u.split(","));
-
-const isSorted = (xs: string[]) => {
+const isSorted = (xs: string[], g: G) => {
   let i = 1;
   let previous = xs[i - 1];
   while (i < xs.length) {
@@ -61,20 +54,29 @@ const sort = (xs: string[], g: G) => {
   return path;
 };
 
-const part1 = () => {
+const parse = (input: string): [string[][], G] => {
+  const [instructions, updates] = input.trim().split(/\r?\n\r?\n/);
+  const g = mkGraph(instructions.split(/\r?\n/).map((i) => i.split("|")));
+  const u = updates.split(/\r?\n/).map((u) => u.split(","));
+  return [u, g];
+};
+
+export const part1 = (input: string) => {
+  const [u, g] = parse(input);
   let sum = 0;
   for (const update of u) {
-    if (isSorted(update)) {
+    if (isSorted(update, g)) {
       sum += Number(update[Math.floor(update.length / 2)]);
     }
   }
   return sum;
 };
 
-const part2 = () => {
+export const part2 = (input: string) => {
+  const [u, g] = parse(input);
   let sum = 0;
   for (const update of u) {
-    if (!isSorted(update)) {
+    if (!isSorted(update, g)) {
       const sorted = sort(update, g);
       sum += Number(sorted[Math.floor(update.length / 2)]);
     }
@@ -82,5 +84,8 @@ const part2 = () => {
   return sum;
 };
 
-console.log(`Part one: ${part1()}`);
-console.log(`Part two: ${part2()}`);
+if (import.meta.path === Bun.main) {
+  const input = await Bun.file("input.txt").text();
+  console.log(`Part one: ${part1(input)}`);
+  console.log(`Part two: ${part2(input)}`);
+}
