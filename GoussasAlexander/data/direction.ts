@@ -38,3 +38,45 @@ export const nw = (from: Point): Point => ({ x: from.x - 1, y: from.y - 1 });
 export const ne = (from: Point): Point => ({ x: from.x - 1, y: from.y + 1 });
 export const sw = (from: Point): Point => ({ x: from.x + 1, y: from.y - 1 });
 export const se = (from: Point): Point => ({ x: from.x + 1, y: from.y + 1 });
+
+export const vector = (direction: Direction): Point => {
+  switch (direction) {
+    case "N":
+      return { x: -1, y: 0 };
+    case "S":
+      return { x: 1, y: 0 };
+    case "E":
+      return { x: 0, y: 1 };
+    case "W":
+      return { x: 0, y: -1 };
+    case "NE":
+      return { x: -1, y: 1 };
+    case "NW":
+      return { x: -1, y: -1 };
+    case "SE":
+      return { x: 1, y: 1 };
+    case "SW":
+      return { x: 1, y: -1 };
+  }
+};
+
+export const turnRight = (direction: Direction): Direction => {
+  switch (direction) {
+    case "N":
+      return "E";
+    case "E":
+      return "S";
+    case "S":
+      return "W";
+    case "W":
+      return "N";
+    case "NE":
+      return "SE";
+    case "SE":
+      return "SW";
+    case "SW":
+      return "NW";
+    case "NW":
+      return "NE";
+  }
+};
