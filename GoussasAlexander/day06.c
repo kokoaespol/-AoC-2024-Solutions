@@ -1,8 +1,9 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 
-#define W 1130
+#define W 130
 #define H 130
 
 #define ZERO_INIT(a, h, w) \
@@ -17,10 +18,10 @@
     a[x][i][j] = 0;
 
 typedef enum {
-    NORTH,
-    SOUTH,
-    WEST,
-    EAST,
+    NORTH = 0,
+    SOUTH = 1,
+    WEST  = 2,
+    EAST  = 3,
 } Direction;
 
 typedef struct {
@@ -61,6 +62,12 @@ Direction direction_to_right(Direction direction) {
     }
 }
 
+static Cell cells[H][W];
+static pthread_mutex_t cells_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static int visited1[H][W];
+static int visited2[H][W];
+
 void parse(const char *input, Guard *guard, Cell cells[H][W]) {
     int x = 0;
     int y = 0;
@@ -69,8 +76,10 @@ void parse(const char *input, Guard *guard, Cell cells[H][W]) {
     while (input[i] != '\0') {
         char c = input[i];
         
-        if (c == '^')
+        if (c == '^') {
             guard->position = (Point){.x = x, .y = y};
+            cells[x][y] = FLOOR;
+        }
 
         if (c == '#')
             cells[x][y] = OBSTACLE;
@@ -89,13 +98,11 @@ void parse(const char *input, Guard *guard, Cell cells[H][W]) {
     }
 }
 
-int part1(Guard guard, Cell cells[H][W], Point *path, Point **last) {
-
-    int visited[H][W];
+int part1(Guard guard, Point *path, Point **last, Point obstacle) {
     int nvisited = 0;
-    ZERO_INIT(visited, H, W);
+    ZERO_INIT(visited1, H, W);
 
-    int directions[4][H][W];
+    static __thread int directions[4][H][W];
     ZERO_INIT2(directions, 4, H, W);
 
     int path_index = 0;
@@ -111,22 +118,27 @@ int part1(Guard guard, Cell cells[H][W], Point *path, Point **last) {
 
         int *dptr = &directions[guard.direction][guard.position.x][guard.position.y];
         if (*dptr != 0) {
+            *last = &path[path_index];
             return -1;
         }
 
         *dptr = 1;
 
-        int *vptr = &visited[guard.position.x][guard.position.y];
+        int *vptr = &visited1[guard.position.x][guard.position.y];
         if (*vptr == 0) {
             nvisited += 1;
         }
 
         *vptr = 1;
 
-        path[path_index++] = p;
+        if (p.x == obstacle.x && p.y == obstacle.y) {
+            guard.direction = direction_to_right(guard.direction);
+            continue;
+        }
 
         switch (cells[p.x][p.y]) {
             case FLOOR:
+                path[path_index++] = guard.position;
                 guard.position = p;
                 break;
             case OBSTACLE:
@@ -135,36 +147,74 @@ int part1(Guard guard, Cell cells[H][W], Point *path, Point **last) {
         }
     }
 
+    path[path_index++] = guard.position;
     *last = &path[path_index];
 
     return nvisited + 1;
 }
 
-int part2(Guard guard, Cell cells[H][W]) {
-    Point path[10000];
-    Point dummy[10000];
+struct t {
+    int start;
+    int end;
+    Point *path;
+    Guard guard;
+    int count;
+};
 
-    Point *last;
-    Point *dummy_last;
+void* count_cycles(void *data) {
+    static Point dummy[10000];
+    static Point *dummy_last;
 
-    int count = 0;
+    struct t *t = data;
 
-    part1(guard, cells, path, &last);
+    int start = t->start;
+    int end = t->end;
+    Point *path = t->path;
+    Guard guard = t->guard;
 
-    for (Point *p = path+1; p != last; p++) {
-        Cell *cell = &cells[p->x][p->y];
-        Cell original = *cell;
+    for (int i = start; i < end; i++) {
+        Point *p = &path[i];
 
-        *cell = OBSTACLE;
+        if (visited2[p->x][p->y] == 1)
+            continue;
 
-        if (part1(guard, cells, dummy, &dummy_last) == -1) {
-            count += 1;
+        if (part1(guard, dummy, &dummy_last, *p) == -1) {
+            t->count += 1;
         }
 
-        *cell = original;
+        visited2[p->x][p->y] = 1;
     }
 
-    return count;
+    return NULL;
+}
+
+int part2(Guard guard) {
+    Point path[10000];
+    Point *last;
+
+    ZERO_INIT(visited2, H, W);
+    part1(guard, path, &last, (Point){ .x = 131, .y = 131 });
+
+    int n = last - path;
+
+    struct t t1 = { .start = 0, .end = n/4, .path = path, .guard = guard, .count = 0 };
+    struct t t2 = { .start = n/4, .end = n/2, .path = path, .guard = guard, .count = 0 };
+    struct t t3 = { .start = n/2, .end = n-n/2, .path = path, .guard = guard, .count = 0 };
+    struct t t4 = { .start = n-n/2, .end = n, .path = path, .guard = guard, .count = 0 };
+
+    pthread_t tid1, tid2, tid3, tid4;
+
+    pthread_create(&tid1, NULL, count_cycles, (void *)&t1);
+    pthread_create(&tid2, NULL, count_cycles, (void *)&t2);
+    pthread_create(&tid3, NULL, count_cycles, (void *)&t3);
+    pthread_create(&tid4, NULL, count_cycles, (void *)&t4);
+
+    pthread_join(tid1, NULL);
+    pthread_join(tid2, NULL);
+    pthread_join(tid3, NULL);
+    pthread_join(tid4, NULL);
+
+    return t1.count + t2.count + t3.count + t4.count;
 }
 
 int main() {
@@ -180,14 +230,14 @@ int main() {
 
     Guard guard;
     guard.direction = NORTH;
-    Cell cells[H][W];
+
     parse(buffer, &guard, cells);
 
-    Point path[10000];
+    Point path[10000] = {};
     Point* last;
     
-    printf("Part one: %d\n", part1(guard, cells, path, &last));
-    printf("Part two: %d\n", part2(guard, cells));
+    printf("Part one: %d\n", part1(guard, path, &last, (Point){ .x = 131, .y = 131 }));
+    printf("Part two: %d\n", part2(guard));
 
     free(buffer);
 }
