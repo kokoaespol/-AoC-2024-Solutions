@@ -40,7 +40,7 @@ Take a look at the little Elf's word search. How many times does XMAS appear?
 """
 
 import numpy as np
-
+import re
 with open("input.txt","r") as file:
     cadenas = file.read().strip().split()
     matriz = np.array([list(line) for line in cadenas])
